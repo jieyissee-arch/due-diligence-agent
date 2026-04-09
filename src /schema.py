@@ -10,7 +10,7 @@ import json
 import re
 
 
-# The five extraction categories — drawn directly from the original pipeline
+# The five extraction categories
 VALID_TOPICS = {
     "CLOSURES",        # company closing a manufacturing site or facility
     "EXPANSIONS",      # company expanding or investing in an existing site
