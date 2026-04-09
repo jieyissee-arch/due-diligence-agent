@@ -1,20 +1,7 @@
-# .github/workflows/run_agent.yml
-#
-# Runs the due diligence news agent on demand or on a schedule.
-#
-# Triggers:
-#   - Manual: Actions tab - Run workflow
-#   - Scheduled: every day at 06:00 UTC (optional, commented out by default)
-#
-# Required repository secret:
-#   ANTHROPIC_API_KEY - add via Settings - Secrets - Actions
-
 name: Run Due Diligence Agent
 
 on:
   workflow_dispatch:
-  # schedule:
-  #   - cron: '0 6 * * *'
 
 jobs:
   run-agent:
