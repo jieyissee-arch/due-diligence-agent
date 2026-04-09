@@ -3,18 +3,18 @@
 # Runs the due diligence news agent on demand or on a schedule.
 #
 # Triggers:
-#   - Manual: Actions tab → Run workflow
+#   - Manual: Actions tab - Run workflow
 #   - Scheduled: every day at 06:00 UTC (optional, commented out by default)
 #
 # Required repository secret:
-#   ANTHROPIC_API_KEY — add via Settings → Secrets → Actions
+#   ANTHROPIC_API_KEY - add via Settings - Secrets - Actions
 
 name: Run Due Diligence Agent
 
 on:
-  workflow_dispatch:        # manual trigger from Actions tab
+  workflow_dispatch:
   # schedule:
-  #   - cron: '0 6 * * *'  # uncomment to run daily at 06:00 UTC
+  #   - cron: '0 6 * * *'
 
 jobs:
   run-agent:
@@ -40,7 +40,7 @@ jobs:
 
       - name: Upload report
         uses: actions/upload-artifact@v4
-        if: always()           # upload even if agent encountered errors
+        if: always()
         with:
           name: due-diligence-report
           path: output/report.json
