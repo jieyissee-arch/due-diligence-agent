@@ -1,0 +1,47 @@
+# .github/workflows/run_agent.yml
+#
+# Runs the due diligence news agent on demand or on a schedule.
+#
+# Triggers:
+#   - Manual: Actions tab → Run workflow
+#   - Scheduled: every day at 06:00 UTC (optional, commented out by default)
+#
+# Required repository secret:
+#   ANTHROPIC_API_KEY — add via Settings → Secrets → Actions
+
+name: Run Due Diligence Agent
+
+on:
+  workflow_dispatch:        # manual trigger from Actions tab
+  # schedule:
+  #   - cron: '0 6 * * *'  # uncomment to run daily at 06:00 UTC
+
+jobs:
+  run-agent:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run agent
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python src/agent.py
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        if: always()           # upload even if agent encountered errors
+        with:
+          name: due-diligence-report
+          path: output/report.json
+          retention-days: 30
