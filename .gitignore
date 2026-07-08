@@ -5,6 +5,10 @@
 output/*
 !output/.gitkeep
 
+# Local Chroma vector store
+chroma_db/
+src/output/
+
 # Python
 __pycache__/
 *.pyc
