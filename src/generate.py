@@ -31,9 +31,14 @@ Use only the provided source passages. Do not invent facts that are not
 supported by those passages. If the passages are insufficient, say what is
 missing.
 
-In your answer, cite the sources you used by source name and date
-(for example: foodbusinessnews.net, 2022-06-05). Prefer concise, factual
-prose suitable for an analyst briefing."""
+In your answer, cite each claim with the passage label from the prompt
+(for example: [Passage 1]), together with the source name and date
+(for example: [Passage 1] foodbusinessnews.net, 2022-06-05).
+
+At the end, add a short "Sources used:" section listing every passage
+label you relied on (for example: [Passage 1], [Passage 3]).
+
+Prefer concise, factual prose suitable for an analyst briefing."""
 
 
 class GenerationError(Exception):
@@ -65,7 +70,8 @@ def build_prompt(question: str, chunks: list[dict[str, Any]]) -> str:
     """Build the user prompt with the question and retrieved chunk metadata."""
     return (
         "Answer the question using only the source passages below.\n"
-        "Cite each claim with the relevant source and date.\n\n"
+        "Cite each claim with the passage label, source, and date "
+        "(for example: [Passage 1] foodbusinessnews.net, 2022-06-05).\n\n"
         f"Question:\n{question.strip()}\n\n"
         f"Source passages:\n{_format_chunks_for_prompt(chunks)}"
     )

@@ -1,37 +1,230 @@
 # Due Diligence News Agent
 
-An agentic pipeline that extracts structured business events from trade news articles using Claude. Built for due diligence research workflows to ensure data extraction is optimised, accurate and consistent.
+An end-to-end research automation project for private-equity due diligence on the food manufacturing and FMCG sector. It combines an **agentic extraction pipeline** (scrape → Claude → schema validation → JSON report) with a **local RAG layer** (chunk → embed → Chroma → grounded Q&A with citations).
 
-## What it does
+Built to replace manual analyst review of hundreds of trade-press articles with consistent, structured output.
 
-The agent takes a list of article URLs, fetches each article, and uses Claude to extract key business events - company actions, market developments, and regulatory updates — in a structured, validated format. Results are written to a consolidated JSON report.
+---
 
-Each extraction is validated against a schema before being accepted. If validation fails, the agent retries with a refined prompt. This ensures output quality without manual review of every article.
+## For reviewers — start here
 
-The pipeline runs autonomously via GitHub Actions, making it suitable for overnight or scheduled research runs.
+If you are evaluating this repo, you do not need access to private data:
+
+```bash
+git clone https://github.com/jieyissee-arch/due-diligence-agent.git
+cd due-diligence-agent
+pip install -r requirements.txt
+cp .env.example .env          # add ANTHROPIC_API_KEY for generation / extraction demos
+cp demo_data.example.json demo_data.json
+
+# RAG quickstart (~5 min, synthetic corpus)
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONPATH=src python3 src/build_index.py
+PYTHONPATH=src python3 src/eval_chunking.py
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONPATH=src python3 src/eval_retrieval.py
+
+# Extraction quickstart (5 public article URLs in inputs/urls.json)
+python3 src/agent.py
+```
+
+**What to look at in the code:**
+
+| Area | Files | What it demonstrates |
+|------|-------|----------------------|
+| Agent loop + retries | [`src/agent.py`](src/agent.py) | Claude extraction with validation-driven retry |
+| Output quality | [`src/schema.py`](src/schema.py) | Strict JSON schema, five-category taxonomy |
+| RAG retrieval | [`src/retrieval.py`](src/retrieval.py) | Local Chroma, cosine similarity, provider consistency checks |
+| Grounded generation | [`src/generate.py`](src/generate.py) | Retrieved passages in prompt, citation instructions |
+| Retrieval eval | [`src/eval_retrieval.py`](src/eval_retrieval.py), [`eval/labeled_queries.json`](eval/labeled_queries.json) | Labeled queries, category_hit@k, MRR |
+| CI | [`.github/workflows/run_agent.yml`](.github/workflows/run_agent.yml) | Scheduled extraction via GitHub Actions |
+
+---
+
+## Problem
+
+Due diligence teams monitoring food manufacturing need to track corporate events across trade press: site closures, expansions, new builds, product launches, and packaging changes. Manual extraction from hundreds of articles is slow, inconsistent, and hard to query retrospectively.
+
+## Solution
+
+Two complementary pipelines:
+
+1. **Extraction** — fetch articles, extract structured events with Claude, validate against a schema, retry on failure, write a consolidated report. Runnable locally or via GitHub Actions.
+2. **RAG** — index extracted events locally, retrieve relevant passages by semantic search, answer analyst questions with Claude grounded in retrieved chunks and explicit source citations.
+
+A companion private data repo (`news_scrape_mar26`) holds the full scraped and extracted corpus (~2k+ events from 3k articles). This public repo ships code, a synthetic fixture, and eval queries — not real research data.
+
+---
+
+## Tech stack
+
+| Layer | Choice | Rationale |
+|-------|--------|-----------|
+| LLM | Claude Haiku (`claude-haiku-4-5-20251001`) | Low cost, fast enough for batch extraction and RAG answers |
+| Embeddings | `sentence-transformers` / `all-MiniLM-L6-v2` | Free, local, no API key for indexing |
+| Vector store | Chroma (persistent, local) | Simple local demo; cosine similarity |
+| Web fetch | `httpx` + `beautifulsoup4` | Article text extraction |
+| Orchestration | GitHub Actions | Unattended extraction runs |
+| Language | Python 3.9+ | |
+
+---
 
 ## Architecture
-urls.json → agent.py → tools.py (fetch article) → Claude API (extract events) → schema.py (validate output) → report.json
 
-- **agent.py** - core agent loop: iterates over URLs, manages tool calls, handles retries, writes output
-- **tools.py** — fetch article tool: retrieves and cleans article text for Claude to process
-- **schema.py** — defines the event schema and validates Claude's structured output before it is accepted
+```mermaid
+flowchart TB
+    subgraph extract [Extraction pipeline]
+        URLs[inputs/urls.json] --> Agent[agent.py]
+        Agent --> Tools[tools.py fetch]
+        Tools --> Claude1[Claude API]
+        Claude1 --> Schema[schema.py validate]
+        Schema -->|retry on fail| Agent
+        Schema --> Report[output/report.json]
+    end
+
+    subgraph rag [RAG pipeline local]
+        Data[demo_data.json] --> Chunk[chunking.py]
+        Chunk --> Embed[embeddings.py]
+        Embed --> Chroma[(chroma_db)]
+        Query[User question] --> Retrieve[retrieval.py]
+        Chroma --> Retrieve
+        Retrieve --> Gen[generate.py]
+        Gen --> Claude2[Claude API]
+        Claude2 --> Answer[Answer + chunks_used]
+    end
+
+    subgraph eval [Evaluation]
+        LQ[eval/labeled_queries.json] --> EvalR[eval_retrieval.py]
+        Chroma --> EvalR
+        Data --> EvalC[eval_chunking.py]
+        Chunk --> EvalC
+    end
+```
+
+### Event taxonomy
+
+All extractions map to five due-diligence categories (see [`src/schema.py`](src/schema.py)):
+
+- **CLOSURES** — manufacturing site or facility shutdowns
+- **EXPANSIONS** — investment in existing sites or lines
+- **NEW_BUILDS** — new facility construction or opening
+- **PRODUCT_LAUNCHES** — new products or ranges
+- **PACKAGING** — packaging material or design changes (especially sustainability)
+
+### Key design decisions
+
+- **Validation before acceptance** — Claude output is parsed and schema-checked; failed extractions trigger a reinforced retry prompt (up to 3 attempts) rather than silently accepting bad JSON.
+- **Local-first RAG** — embeddings and Chroma run on-machine; no hosted vector DB or embedding API required for demos.
+- **Swappable embedding provider** — `sentence-transformers` by default; optional Voyage AI via env config. Retrieval validates provider/model matches index metadata.
+- **Traceable RAG answers** — prompts label passages `[Passage N]`; Claude is instructed to cite source and date; `chunks_used` returned alongside the answer.
+- **Eval without golden corpus in repo** — `eval/labeled_queries.json` holds queries and expected categories/sources; metrics (`category_hit@k`, `source_hit@k`, MRR) computed against whatever index is built locally.
+- **Data boundary** — real extracted events stay in gitignored `demo_data.json`; public quickstart uses [`demo_data.example.json`](demo_data.example.json).
+
+---
+
+## Project structure
+
+```
+due-diligence-agent/
+├── src/
+│   ├── agent.py              # Extraction agent loop
+│   ├── tools.py              # Article fetch + text cleanup
+│   ├── schema.py             # Event validation
+│   ├── chunking.py           # Passage splitting + metadata
+│   ├── embeddings.py         # Local / API embedding providers
+│   ├── retrieval.py          # Chroma index + retrieve()
+│   ├── generate.py           # RAG prompt + Claude generation
+│   ├── build_index.py        # Chunk → embed → Chroma (one shot)
+│   ├── eval_chunking.py      # Chunking invariant checks
+│   └── eval_retrieval.py     # Retrieval metrics
+├── eval/
+│   └── labeled_queries.json  # Eval query set
+├── inputs/urls.json          # Sample article URLs (extraction demo)
+├── demo_data.example.json    # Synthetic RAG corpus (committed)
+├── sample_events.py          # Sample from private news_scrape_mar26 repo
+├── prepare_demo_data.py      # Legacy small sampler (deprecated)
+└── .github/workflows/        # CI extraction job
+```
+
+---
 
 ## Setup
 
+### Prerequisites
+
+- Python 3.9+
+- `ANTHROPIC_API_KEY` in `.env` (for extraction and RAG generation)
+- Optional: Hugging Face model cache for `all-MiniLM-L6-v2` (downloaded on first embed run)
+
 ```bash
-git clone https://github.com/your-username/due-diligence-agent.git
+git clone https://github.com/jieyissee-arch/due-diligence-agent.git
 cd due-diligence-agent
 pip install -r requirements.txt
-cp .env.example .env          # add your ANTHROPIC_API_KEY
-python src/agent.py
+cp .env.example .env
 ```
 
-To run via GitHub Actions, add ANTHROPIC_API_KEY as a repository secret and trigger the run_agent workflow manually or on push.
+### Path A — Public quickstart (synthetic data)
+
+```bash
+cp demo_data.example.json demo_data.json
+
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONPATH=src python3 src/build_index.py > build_index_log.txt 2>&1
+PYTHONPATH=src python3 src/eval_chunking.py > eval_chunking_log.txt 2>&1
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONPATH=src python3 src/eval_retrieval.py > eval_retrieval_log.txt 2>&1
+```
+
+### Path B — Full private corpus
+
+Requires the private sibling repo `news_scrape_mar26` cloned alongside this project:
+
+```
+Projects/
+├── due-diligence-agent/
+└── news_scrape_mar26/          # events_extracted.jsonl
+```
+
+```bash
+python3 sample_events.py > sample_events_log.txt 2>&1
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONPATH=src python3 src/build_index.py > build_index_log.txt 2>&1
+```
+
+`sample_events.py` reads `events_extracted.jsonl`, excludes records already in local `demo_data.json`, and writes a stratified sample (default 1,000 events). Configure via `NEWS_SCRAPE_DIR`, `TARGET_TOTAL`, `RANDOM_SEED`.
+
+### Extraction pipeline
+
+```bash
+python3 src/agent.py
+# or trigger manually: GitHub Actions → Run Due Diligence Agent
+```
+
+Add `ANTHROPIC_API_KEY` as a repository secret for CI. Report artifact: `output/report.json`.
+
+---
+
+## Evaluation
+
+| Script | What it checks |
+|--------|----------------|
+| `src/eval_chunking.py` | Metadata preserved, word bounds, every record produces chunks |
+| `src/eval_retrieval.py` | `category_hit@k`, `source_hit@k`, MRR at k=1/3/5 against labeled queries |
+
+On a ~1,000-event private index, a representative run reported **90% category_hit@5** and **MRR 0.86** at k=5. Scores depend on corpus size and query set; re-run locally after building your index.
+
+---
+
+## Data and privacy
+
+| Committed (public) | Gitignored (local only) |
+|--------------------|-------------------------|
+| `demo_data.example.json` (synthetic) | `demo_data.json` (real events) |
+| `eval/labeled_queries.json` | `chroma_db/`, `output/` |
+| `inputs/urls.json` (public URLs) | `.env` |
+
+Historical commits may contain a small early demo dataset. Current policy: real extracted events are never committed going forward.
+
+---
 
 ## Sample output
 
-Each extracted event follows this structure:
+**Extraction report** (`output/report.json`):
 
 ```json
 {
@@ -40,9 +233,9 @@ Each extracted event follows this structure:
     {
       "topic": "NEW_BUILDS",
       "company": "Oatly",
-      "description": "Oatly is building a new plant in Fort Worth to process approximately 40 million gallons of oat milk per year.",
+      "description": "Oatly is building a new plant in Fort Worth...",
       "location": "Fort Worth, United States",
-      "scale": "40 million gallons per year capacity, 275,000 square foot facility"
+      "scale": "40 million gallons per year capacity"
     }
   ],
   "validated": true,
@@ -50,5 +243,28 @@ Each extracted event follows this structure:
 }
 ```
 
-## Why this exists
-Built to accelerate due diligence research at a finance firm where analysts want to evaluate hundreds of trade news articles for topics, trends and sentiment across time. Manual extraction took hours. This agent processes a batch of 50 articles in under 10 minutes with consistent structured output.
+**RAG record** (`demo_data.json`):
+
+```json
+{
+  "category": "CLOSURES",
+  "source": "foodmanufacture.co.uk",
+  "date": "2025-10-16",
+  "text": "..."
+}
+```
+
+---
+
+## Limitations and extensions
+
+- Demo corpus uses **event-level snippets**, not full article text; chunking is mostly one event per chunk.
+- Retrieval eval is **category/source-based**, not human-judged relevance labels.
+- **Interactive frontend** — analyst dashboard (timeseries, trends, drill-down chat) planned as the next phase; current repo is API/script-driven.
+- Full scrape orchestration lives in the private `news_scrape_mar26` repo (Apify crawlers, JSONL outputs).
+
+---
+
+## Background
+
+Developed to accelerate due diligence research where analysts evaluate trade news for topics, trends, and sentiment across time. The extraction agent processes a batch of ~50 articles in under 10 minutes with schema-validated output; the RAG layer adds retrospective querying over indexed events without sending the full corpus to Claude on every question.

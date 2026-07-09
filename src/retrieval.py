@@ -65,6 +65,34 @@ def _cosine_similarity(distance: float) -> float:
     return 1.0 - float(distance)
 
 
+def validate_embedding_config(
+    meta: dict[str, Any],
+    provider: EmbeddingProvider | None = None,
+) -> None:
+    """
+    Ensure the active embedding provider matches the saved index metadata.
+
+    Raises RetrievalError when provider or model differs from index time.
+    """
+    backend = provider or get_embedding_provider()
+    saved_provider = meta.get("provider")
+    saved_model = meta.get("model")
+
+    if saved_provider and saved_provider != backend.name:
+        raise RetrievalError(
+            f"Embedding provider mismatch: index was built with "
+            f"'{saved_provider}' but EMBEDDING_PROVIDER is '{backend.name}'. "
+            "Rebuild the index or update your environment."
+        )
+
+    if saved_model and saved_model != backend.model:
+        raise RetrievalError(
+            f"Embedding model mismatch: index was built with "
+            f"'{saved_model}' but EMBEDDING_MODEL is '{backend.model}'. "
+            "Rebuild the index or update your environment."
+        )
+
+
 def _ensure_sqlite() -> None:
     """
     On older macOS/Python builds, Chroma needs sqlite3 >= 3.35.
@@ -163,6 +191,7 @@ def load_chunks_into_chroma(
     """
     if embedded_records is None:
         loaded = load_embeddings(_resolve_embedding_path(embeddings_path))
+        validate_embedding_config(loaded["meta"])
         embedded_records = loaded["records"]
 
     if not embedded_records:

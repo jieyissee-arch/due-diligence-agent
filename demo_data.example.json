@@ -1,0 +1,62 @@
+[
+  {
+    "category": "CLOSURES",
+    "source": "example-trade-press.com",
+    "date": "2023-06-01",
+    "text": "Example Foods announced the closure of a demonstration bakery facility in Example City as part of a portfolio review."
+  },
+  {
+    "category": "CLOSURES",
+    "source": "demo-industry-news.example",
+    "date": "2024-11-15",
+    "text": "Sample Beverage Co. is shutting down a pilot production line at its Sampletown plant, affecting approximately 120 roles."
+  },
+  {
+    "category": "EXPANSIONS",
+    "source": "example-trade-press.com",
+    "date": "2023-09-20",
+    "text": "Illustrative Snacks Ltd. is expanding an existing Midwest manufacturing site with two new packaging lines and a cold-storage upgrade."
+  },
+  {
+    "category": "EXPANSIONS",
+    "source": "demo-industry-news.example",
+    "date": "2025-03-08",
+    "text": "Placeholder Dairy invested in additional fermentation capacity at a legacy facility to support growing demand for yogurt products."
+  },
+  {
+    "category": "NEW_BUILDS",
+    "source": "example-trade-press.com",
+    "date": "2024-02-14",
+    "text": "Demo Plant-Based Inc. is constructing a new oat processing facility in Sample County with an expected annual capacity of 30 million litres."
+  },
+  {
+    "category": "NEW_BUILDS",
+    "source": "demo-industry-news.example",
+    "date": "2022-07-30",
+    "text": "Synthetic Ingredients Group broke ground on a greenfield flavour manufacturing site serving European customers."
+  },
+  {
+    "category": "PRODUCT_LAUNCHES",
+    "source": "example-trade-press.com",
+    "date": "2025-01-10",
+    "text": "Example Wellness Brands launched a high-protein yogurt range developed for a major sporting event marketing campaign."
+  },
+  {
+    "category": "PRODUCT_LAUNCHES",
+    "source": "demo-industry-news.example",
+    "date": "2023-12-05",
+    "text": "Sample Cereals introduced a plant-based breakfast line positioned as a sustainable alternative to traditional cornflakes."
+  },
+  {
+    "category": "PACKAGING",
+    "source": "example-trade-press.com",
+    "date": "2024-08-22",
+    "text": "Illustrative Pack Co. moved several SKUs to recyclable paper-based packaging as part of a 2024 sustainability roadmap."
+  },
+  {
+    "category": "PACKAGING",
+    "source": "demo-industry-news.example",
+    "date": "2025-05-18",
+    "text": "Placeholder Drinks reduced plastic use in multipack wraps by switching to a certified recycled film across its sparkling water range."
+  }
+]

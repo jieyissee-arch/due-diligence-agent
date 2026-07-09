@@ -4,6 +4,9 @@ from __future__ import annotations
 """
 Build a small demo dataset from extracted news events.
 
+DEPRECATED: prefer sample_events.py for scaling from the private corpus, or
+copy demo_data.example.json for a public quickstart without real research data.
+
 Reads ../news_scrape_mar26/events_extracted.jsonl, samples roughly 15–20
 records per category, and writes demo_data.json in the repo root.
 """

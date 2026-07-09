@@ -14,6 +14,12 @@ __pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
+ragdemo/
+venv/
+.venv/
+
+# Pipeline logs
+*_log.txt
 
 # macOS
 .DS_Store
@@ -21,3 +27,6 @@ __pycache__/
 # Data files — never commit these
 *.jsonl
 *.json.bak
+
+# Local corpus — real extracted events (use demo_data.example.json for quickstart)
+demo_data.json

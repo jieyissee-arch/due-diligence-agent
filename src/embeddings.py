@@ -32,7 +32,8 @@ DEFAULT_MODEL = os.getenv(
     "EMBEDDING_MODEL",
     "all-MiniLM-L6-v2",
 )
-OUTPUT_DIR = Path("output")
+REPO_ROOT = Path(__file__).resolve().parent.parent
+OUTPUT_DIR = REPO_ROOT / "output"
 DEFAULT_OUTPUT_FILE = OUTPUT_DIR / "embedded_chunks.json"
 
 

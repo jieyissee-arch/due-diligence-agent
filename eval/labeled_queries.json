@@ -1,0 +1,127 @@
+[
+  {
+    "id": "closures_bakery_uk",
+    "query": "bakery factory closures in the UK",
+    "expected_categories": ["CLOSURES"],
+    "expected_sources_any": ["foodmanufacture.co.uk"],
+    "eval_at_k": [1, 3, 5]
+  },
+  {
+    "id": "closures_general",
+    "query": "manufacturing plant shutdowns and facility closures",
+    "expected_categories": ["CLOSURES"],
+    "eval_at_k": [1, 3, 5]
+  },
+  {
+    "id": "closures_unilever",
+    "query": "Unilever factory closures and layoffs",
+    "expected_categories": ["CLOSURES"],
+    "eval_at_k": [1, 3, 5]
+  },
+  {
+    "id": "closures_warehouse",
+    "query": "warehouse or distribution centre closures",
+    "expected_categories": ["CLOSURES"],
+    "eval_at_k": [1, 3, 5]
+  },
+  {
+    "id": "expansions_capacity",
+    "query": "production capacity expansion and new manufacturing lines",
+    "expected_categories": ["EXPANSIONS"],
+    "eval_at_k": [1, 3, 5]
+  },
+  {
+    "id": "expansions_investment",
+    "query": "capital investment in existing food plants",
+    "expected_categories": ["EXPANSIONS"],
+    "eval_at_k": [1, 3, 5]
+  },
+  {
+    "id": "expansions_foodbusinessnews",
+    "query": "site expansion reported by food business news",
+    "expected_categories": ["EXPANSIONS"],
+    "expected_sources_any": ["foodbusinessnews.net"],
+    "eval_at_k": [1, 3, 5]
+  },
+  {
+    "id": "new_builds_plant",
+    "query": "new food manufacturing plant construction",
+    "expected_categories": ["NEW_BUILDS"],
+    "eval_at_k": [1, 3, 5]
+  },
+  {
+    "id": "new_builds_facility_opening",
+    "query": "opening a brand new production facility",
+    "expected_categories": ["NEW_BUILDS"],
+    "eval_at_k": [1, 3, 5]
+  },
+  {
+    "id": "new_builds_oatly_style",
+    "query": "building a new plant for beverages or dairy alternatives",
+    "expected_categories": ["NEW_BUILDS"],
+    "eval_at_k": [1, 3, 5]
+  },
+  {
+    "id": "product_launches",
+    "query": "new product launches in food and beverage",
+    "expected_categories": ["PRODUCT_LAUNCHES"],
+    "eval_at_k": [1, 3, 5]
+  },
+  {
+    "id": "product_launches_yogurt",
+    "query": "yogurt or dairy product launch",
+    "expected_categories": ["PRODUCT_LAUNCHES"],
+    "eval_at_k": [1, 3, 5]
+  },
+  {
+    "id": "product_launches_fooddive",
+    "query": "product launch announced on fooddive",
+    "expected_categories": ["PRODUCT_LAUNCHES"],
+    "expected_sources_any": ["fooddive.com"],
+    "eval_at_k": [1, 3, 5]
+  },
+  {
+    "id": "packaging_sustainable",
+    "query": "sustainable recyclable packaging changes",
+    "expected_categories": ["PACKAGING"],
+    "eval_at_k": [1, 3, 5]
+  },
+  {
+    "id": "packaging_material",
+    "query": "packaging material redesign or eco-friendly packaging",
+    "expected_categories": ["PACKAGING"],
+    "eval_at_k": [1, 3, 5]
+  },
+  {
+    "id": "packaging_plastic",
+    "query": "reducing plastic in product packaging",
+    "expected_categories": ["PACKAGING"],
+    "eval_at_k": [1, 3, 5]
+  },
+  {
+    "id": "cross_category_site",
+    "query": "food manufacturing site changes in Europe",
+    "expected_categories": ["CLOSURES", "EXPANSIONS", "NEW_BUILDS"],
+    "eval_at_k": [1, 3, 5]
+  },
+  {
+    "id": "source_foodmanufacture",
+    "query": "UK food manufacturing news from foodmanufacture",
+    "expected_sources_any": ["foodmanufacture.co.uk"],
+    "eval_at_k": [1, 3, 5]
+  },
+  {
+    "id": "source_just_food",
+    "query": "expansion or investment news from just-food",
+    "expected_categories": ["EXPANSIONS"],
+    "expected_sources_any": ["just-food.com"],
+    "eval_at_k": [1, 3, 5]
+  },
+  {
+    "id": "negative_irrelevant",
+    "query": "quarterly earnings per share dividend guidance",
+    "expected_categories": [],
+    "notes": "Diagnostic — corpus may still return weak semantic matches",
+    "eval_at_k": [1, 3, 5]
+  }
+]
