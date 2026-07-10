@@ -32,6 +32,9 @@ jobs:
       - name: Run unit tests
         run: PYTHONPATH=src pytest tests/ -q
 
+      - name: Dashboard offline smoke
+        run: PYTHONPATH=src python src/validate_dashboard.py --offline
+
       - name: Run offline eval suite (example)
         run: PYTHONPATH=src python src/eval_run_all.py --suite example --offline
 
