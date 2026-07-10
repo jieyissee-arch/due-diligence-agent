@@ -44,7 +44,8 @@ python3 src/agent.py
 | Retrieval eval | [`src/eval_retrieval.py`](src/eval_retrieval.py), [`eval/labeled_queries.json`](eval/labeled_queries.json) | Labeled queries, category_hit@k, MRR |
 | Generation eval | [`src/eval_generation.py`](src/eval_generation.py), [`eval/labeled_answers.json`](eval/labeled_answers.json) | Citation validity, term grounding, abstention |
 | Eval orchestrator | [`src/eval_run_all.py`](src/eval_run_all.py) | Chunking + retrieval + generation; writes `output/eval_report.json` |
-| CI (RAG eval) | [`.github/workflows/rag_eval.yml`](.github/workflows/rag_eval.yml) | Offline example suite on synthetic corpus |
+| Dashboard smoke | [`src/validate_dashboard.py`](src/validate_dashboard.py), [`tests/test_dashboard_api.py`](tests/test_dashboard_api.py) | API + static UI checks without manual browser testing |
+| CI (RAG eval) | [`.github/workflows/rag_eval.yml`](.github/workflows/rag_eval.yml) | pytest, dashboard smoke, offline example eval on synthetic corpus |
 | CI | [`.github/workflows/run_agent.yml`](.github/workflows/run_agent.yml) | Scheduled extraction via GitHub Actions |
 
 ---
@@ -170,13 +171,15 @@ due-diligence-agent/
 │   ├── eval_generation.py    # Generation grounding metrics
 │   ├── eval_scoring.py       # Pure scoring helpers (unit tested)
 │   ├── eval_common.py        # Suite filter, thresholds, report writer
-│   └── eval_run_all.py       # Run full eval suite
+│   ├── eval_run_all.py       # Run full eval suite
+│   └── validate_dashboard.py # Dashboard API/UI smoke validation
 ├── eval/
 │   ├── labeled_queries.json  # Retrieval eval query set
 │   ├── labeled_answers.json  # Generation eval query set
 │   └── thresholds.json       # Per-suite pass thresholds
 ├── tests/
-│   └── test_eval_scoring.py  # Unit tests for eval scoring helpers
+│   ├── test_eval_scoring.py  # Unit tests for eval scoring helpers
+│   └── test_dashboard_api.py # Dashboard API smoke tests
 ├── inputs/urls.json          # Sample article URLs (extraction demo)
 ├── demo_data.example.json    # Synthetic RAG corpus (committed)
 ├── sample_events.py          # Sample from private news_scrape_mar26 repo
@@ -207,8 +210,10 @@ cp .env.example .env
 cp demo_data.example.json demo_data.json
 
 HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONPATH=src python3 src/build_index.py > build_index_log.txt 2>&1
-PYTHONPATH=src python3 src/eval_chunking.py > eval_chunking_log.txt 2>&1
-HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONPATH=src python3 src/eval_retrieval.py > eval_retrieval_log.txt 2>&1
+PYTHONPATH=src python3 src/eval_run_all.py --suite example --offline > eval_run_all_log.txt 2>&1
+
+# Optional: dashboard API smoke (no API key)
+PYTHONPATH=src python3 src/validate_dashboard.py --offline
 ```
 
 ### Path B — Full private corpus
@@ -275,6 +280,7 @@ HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONPATH=src python3 src/api.py
 | `src/eval_retrieval.py` | `category_hit@k`, `source_hit@k`, MRR — gated by `eval/thresholds.json` |
 | `src/eval_generation.py` | Citation validity, grounded terms, abstention — gated by suite thresholds |
 | `src/eval_run_all.py` | All three stages + writes `output/eval_report.json` |
+| `src/validate_dashboard.py` | Dashboard KPIs, charts, briefing, and static UI smoke checks |
 
 **Suites** (`--suite example|private|all`):
 
@@ -295,9 +301,12 @@ PYTHONPATH=src python3 src/eval_run_all.py --offline
 
 # Live generation grounding (requires ANTHROPIC_API_KEY)
 HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONPATH=src python3 src/eval_run_all.py --suite private
+
+# Dashboard live chat smoke (requires API key + built index)
+PYTHONPATH=src python3 src/validate_dashboard.py --live
 ```
 
-Thresholds live in [`eval/thresholds.json`](eval/thresholds.json). CI runs [`.github/workflows/rag_eval.yml`](.github/workflows/rag_eval.yml) on every push/PR.
+Thresholds live in [`eval/thresholds.json`](eval/thresholds.json). CI runs [`.github/workflows/rag_eval.yml`](.github/workflows/rag_eval.yml) on every push/PR (pytest, dashboard smoke, offline example eval). After `eval_run_all.py`, inspect `output/eval_report.json` for per-stage pass/fail and aggregate metrics.
 
 **Generation eval metrics** (`eval/labeled_answers.json`):
 
@@ -312,6 +321,23 @@ Thresholds live in [`eval/thresholds.json`](eval/thresholds.json). CI runs [`.gi
 | `abstention_ok` | Live | Out-of-domain queries get an "insufficient evidence" response |
 
 On a ~1,000-event private index, a representative run reported **90% category_hit@5** and **MRR 0.86** at k=5. Scores depend on corpus size and query set; re-run locally after building your index.
+
+**Eval report** (`output/eval_report.json` — gitignored, produced by `eval_run_all.py`):
+
+```json
+{
+  "timestamp": "2026-07-10T16:00:00+00:00",
+  "suite": "example",
+  "offline": true,
+  "corpus_records": 10,
+  "passed": true,
+  "stages": {
+    "chunking": { "passed": true, "record_count": 10, "chunk_count": 10 },
+    "retrieval": { "passed": true, "metrics": { "category_hit_rate@5": 1.0 } },
+    "generation": { "passed": true, "mode": "offline", "metrics": { "offline_pass_rate": 1.0 } }
+  }
+}
+```
 
 ---
 
