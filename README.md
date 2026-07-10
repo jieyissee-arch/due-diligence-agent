@@ -19,8 +19,7 @@ cp demo_data.example.json demo_data.json
 
 # RAG quickstart (~5 min, synthetic corpus)
 HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONPATH=src python3 src/build_index.py
-PYTHONPATH=src python3 src/eval_chunking.py
-HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONPATH=src python3 src/eval_retrieval.py
+PYTHONPATH=src python3 src/eval_run_all.py --suite example --offline
 
 # Extraction quickstart (5 public article URLs in inputs/urls.json)
 python3 src/agent.py
@@ -35,6 +34,9 @@ python3 src/agent.py
 | RAG retrieval | [`src/retrieval.py`](src/retrieval.py) | Local Chroma, cosine similarity, provider consistency checks |
 | Grounded generation | [`src/generate.py`](src/generate.py) | Retrieved passages in prompt, citation instructions |
 | Retrieval eval | [`src/eval_retrieval.py`](src/eval_retrieval.py), [`eval/labeled_queries.json`](eval/labeled_queries.json) | Labeled queries, category_hit@k, MRR |
+| Generation eval | [`src/eval_generation.py`](src/eval_generation.py), [`eval/labeled_answers.json`](eval/labeled_answers.json) | Citation validity, term grounding, abstention |
+| Eval orchestrator | [`src/eval_run_all.py`](src/eval_run_all.py) | Chunking + retrieval + generation; writes `output/eval_report.json` |
+| CI (RAG eval) | [`.github/workflows/rag_eval.yml`](.github/workflows/rag_eval.yml) | Offline example suite on synthetic corpus |
 | CI | [`.github/workflows/run_agent.yml`](.github/workflows/run_agent.yml) | Scheduled extraction via GitHub Actions |
 
 ---
@@ -93,9 +95,15 @@ flowchart TB
 
     subgraph eval [Evaluation]
         LQ[eval/labeled_queries.json] --> EvalR[eval_retrieval.py]
+        LA[eval/labeled_answers.json] --> EvalG[eval_generation.py]
         Chroma --> EvalR
+        Chroma --> EvalG
+        Gen --> EvalG
         Data --> EvalC[eval_chunking.py]
         Chunk --> EvalC
+        EvalC --> RunAll[eval_run_all.py]
+        EvalR --> RunAll
+        EvalG --> RunAll
     end
 ```
 
@@ -115,7 +123,7 @@ All extractions map to five due-diligence categories (see [`src/schema.py`](src/
 - **Local-first RAG** — embeddings and Chroma run on-machine; no hosted vector DB or embedding API required for demos.
 - **Swappable embedding provider** — `sentence-transformers` by default; optional Voyage AI via env config. Retrieval validates provider/model matches index metadata.
 - **Traceable RAG answers** — prompts label passages `[Passage N]`; Claude is instructed to cite source and date; `chunks_used` returned alongside the answer.
-- **Eval without golden corpus in repo** — `eval/labeled_queries.json` holds queries and expected categories/sources; metrics (`category_hit@k`, `source_hit@k`, MRR) computed against whatever index is built locally.
+- **Eval without golden corpus in repo** — labeled query/answer JSON files hold expected categories, sources, and grounding checks; metrics computed against whatever index is built locally.
 - **Data boundary** — real extracted events stay in gitignored `demo_data.json`; public quickstart uses [`demo_data.example.json`](demo_data.example.json).
 
 ---
@@ -134,9 +142,17 @@ due-diligence-agent/
 │   ├── generate.py           # RAG prompt + Claude generation
 │   ├── build_index.py        # Chunk → embed → Chroma (one shot)
 │   ├── eval_chunking.py      # Chunking invariant checks
-│   └── eval_retrieval.py     # Retrieval metrics
+│   ├── eval_retrieval.py     # Retrieval metrics
+│   ├── eval_generation.py    # Generation grounding metrics
+│   ├── eval_scoring.py       # Pure scoring helpers (unit tested)
+│   ├── eval_common.py        # Suite filter, thresholds, report writer
+│   └── eval_run_all.py       # Run full eval suite
 ├── eval/
-│   └── labeled_queries.json  # Eval query set
+│   ├── labeled_queries.json  # Retrieval eval query set
+│   ├── labeled_answers.json  # Generation eval query set
+│   └── thresholds.json       # Per-suite pass thresholds
+├── tests/
+│   └── test_eval_scoring.py  # Unit tests for eval scoring helpers
 ├── inputs/urls.json          # Sample article URLs (extraction demo)
 ├── demo_data.example.json    # Synthetic RAG corpus (committed)
 ├── sample_events.py          # Sample from private news_scrape_mar26 repo
@@ -204,7 +220,44 @@ Add `ANTHROPIC_API_KEY` as a repository secret for CI. Report artifact: `output/
 | Script | What it checks |
 |--------|----------------|
 | `src/eval_chunking.py` | Metadata preserved, word bounds, every record produces chunks |
-| `src/eval_retrieval.py` | `category_hit@k`, `source_hit@k`, MRR at k=1/3/5 against labeled queries |
+| `src/eval_retrieval.py` | `category_hit@k`, `source_hit@k`, MRR — gated by `eval/thresholds.json` |
+| `src/eval_generation.py` | Citation validity, grounded terms, abstention — gated by suite thresholds |
+| `src/eval_run_all.py` | All three stages + writes `output/eval_report.json` |
+
+**Suites** (`--suite example|private|all`):
+
+| Suite | Corpus | When to use |
+|-------|--------|-------------|
+| `example` | `demo_data.example.json` | Public quickstart, CI |
+| `private` | Local `demo_data.json` (real events) | Local development |
+| `all` | Both query sets | Full local regression |
+
+```bash
+# CI / public quickstart (offline, no API key)
+cp demo_data.example.json demo_data.json
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONPATH=src python3 src/build_index.py
+PYTHONPATH=src python3 src/eval_run_all.py --suite example --offline
+
+# Full local regression on private corpus
+PYTHONPATH=src python3 src/eval_run_all.py --offline
+
+# Live generation grounding (requires ANTHROPIC_API_KEY)
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONPATH=src python3 src/eval_run_all.py --suite private
+```
+
+Thresholds live in [`eval/thresholds.json`](eval/thresholds.json). CI runs [`.github/workflows/rag_eval.yml`](.github/workflows/rag_eval.yml) on every push/PR.
+
+**Generation eval metrics** (`eval/labeled_answers.json`):
+
+| Metric | Mode | Meaning |
+|--------|------|---------|
+| `retrieval_category_hit` | Offline | Retrieved chunks include an expected category |
+| `retrieval_term_hit` | Offline | Required terms appear in retrieved passage text |
+| `citation_present` | Live | Answer cites `[Passage N]` labels |
+| `citation_valid` | Live | Cited passage numbers match retrieved chunks |
+| `sources_used_section` | Live | Answer includes a "Sources used:" section |
+| `grounded_terms` | Live | Required terms appear in cited passage text |
+| `abstention_ok` | Live | Out-of-domain queries get an "insufficient evidence" response |
 
 On a ~1,000-event private index, a representative run reported **90% category_hit@5** and **MRR 0.86** at k=5. Scores depend on corpus size and query set; re-run locally after building your index.
 
@@ -216,7 +269,9 @@ On a ~1,000-event private index, a representative run reported **90% category_hi
 |--------------------|-------------------------|
 | `demo_data.example.json` (synthetic) | `demo_data.json` (real events) |
 | `eval/labeled_queries.json` | `chroma_db/`, `output/` |
-| `inputs/urls.json` (public URLs) | `.env` |
+| `eval/labeled_answers.json` | `chroma_db/`, `output/` |
+| `eval/thresholds.json` | `.env` |
+| `inputs/urls.json` (public URLs) | |
 
 Historical commits may contain a small early demo dataset. Current policy: real extracted events are never committed going forward.
 
@@ -260,6 +315,7 @@ Historical commits may contain a small early demo dataset. Current policy: real 
 
 - Demo corpus uses **event-level snippets**, not full article text; chunking is mostly one event per chunk.
 - Retrieval eval is **category/source-based**, not human-judged relevance labels.
+- Generation eval uses **deterministic citation/term checks**, not LLM-as-judge faithfulness scoring.
 - **Interactive frontend** — analyst dashboard (timeseries, trends, drill-down chat) planned as the next phase; current repo is API/script-driven.
 - Full scrape orchestration lives in the private `news_scrape_mar26` repo (Apify crawlers, JSONL outputs).
 

@@ -1,0 +1,36 @@
+{
+  "example": {
+    "retrieval": {
+      "primary_k": 5,
+      "min_category_hit_rate": 0.8,
+      "min_mrr": 0.7,
+      "min_source_hit_rate": 0.8
+    },
+    "generation": {
+      "min_offline_pass_rate": 1.0,
+      "min_live_pass_rate": 1.0
+    }
+  },
+  "private": {
+    "retrieval": {
+      "primary_k": 5,
+      "min_category_hit_rate": 0.85,
+      "min_mrr": 0.8
+    },
+    "generation": {
+      "min_offline_pass_rate": 0.9,
+      "min_live_pass_rate": 0.9
+    }
+  },
+  "all": {
+    "retrieval": {
+      "primary_k": 5,
+      "min_category_hit_rate": 0.8,
+      "min_mrr": 0.75
+    },
+    "generation": {
+      "min_offline_pass_rate": 0.9,
+      "min_live_pass_rate": 0.9
+    }
+  }
+}

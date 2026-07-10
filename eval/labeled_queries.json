@@ -123,5 +123,52 @@
     "expected_categories": [],
     "notes": "Diagnostic — corpus may still return weak semantic matches",
     "eval_at_k": [1, 3, 5]
+  },
+  {
+    "id": "example_closures_bakery",
+    "query": "demonstration bakery facility closure Example Foods",
+    "expected_categories": ["CLOSURES"],
+    "expected_sources_any": ["example-trade-press.com"],
+    "eval_at_k": [1, 3, 5],
+    "notes": "Public quickstart — demo_data.example.json"
+  },
+  {
+    "id": "example_expansions_packaging",
+    "query": "manufacturing site expansion packaging lines Midwest",
+    "expected_categories": ["EXPANSIONS"],
+    "expected_sources_any": ["example-trade-press.com"],
+    "eval_at_k": [1, 3, 5],
+    "notes": "Public quickstart — Illustrative Snacks"
+  },
+  {
+    "id": "example_new_builds_oat",
+    "query": "new oat processing facility plant-based construction",
+    "expected_categories": ["NEW_BUILDS"],
+    "eval_at_k": [1, 3, 5],
+    "notes": "Public quickstart — Demo Plant-Based Inc."
+  },
+  {
+    "id": "example_packaging_recyclable",
+    "query": "recyclable paper-based packaging sustainability roadmap",
+    "expected_categories": ["PACKAGING"],
+    "expected_sources_any": ["example-trade-press.com"],
+    "eval_at_k": [1, 3, 5],
+    "notes": "Public quickstart — Illustrative Pack Co."
+  },
+  {
+    "id": "example_product_launches_yogurt",
+    "query": "high-protein yogurt product launch sporting event",
+    "expected_categories": ["PRODUCT_LAUNCHES"],
+    "expected_sources_any": ["example-trade-press.com"],
+    "eval_at_k": [1, 3, 5],
+    "notes": "Public quickstart — Example Wellness Brands"
+  },
+  {
+    "id": "example_closures_line_shutdown",
+    "query": "pilot production line shutdown Sampletown plant",
+    "expected_categories": ["CLOSURES"],
+    "expected_sources_any": ["demo-industry-news.example"],
+    "eval_at_k": [1, 3, 5],
+    "notes": "Public quickstart — Sample Beverage Co."
   }
 ]

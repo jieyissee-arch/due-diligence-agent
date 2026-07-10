@@ -1,0 +1,96 @@
+[
+  {
+    "id": "example_closures_bakery",
+    "query": "What demonstration bakery facility closures are mentioned?",
+    "top_k": 3,
+    "expected_categories": ["CLOSURES"],
+    "expected_sources_any": ["example-trade-press.com"],
+    "required_terms_any": ["bakery", "closure", "example"],
+    "require_citations": true,
+    "expect_abstention": false,
+    "notes": "Aligned with demo_data.example.json — public quickstart"
+  },
+  {
+    "id": "example_closures_line_shutdown",
+    "query": "Which production line shutdowns or plant closures are reported?",
+    "top_k": 3,
+    "expected_categories": ["CLOSURES"],
+    "required_terms_any": ["shutdown", "production", "plant"],
+    "require_citations": true,
+    "expect_abstention": false,
+    "notes": "Sample Beverage Co. pilot line — synthetic fixture"
+  },
+  {
+    "id": "example_expansions_packaging_lines",
+    "query": "capital investment and capacity expansion at existing food manufacturing sites",
+    "top_k": 3,
+    "expected_categories": ["EXPANSIONS"],
+    "required_terms_any": ["expand", "capacity", "invest", "manufactur", "plant"],
+    "require_citations": true,
+    "expect_abstention": false,
+    "notes": "Works on synthetic fixture and private corpus; original query targeted Illustrative Snacks"
+  },
+  {
+    "id": "example_new_builds_oat",
+    "query": "What new oat processing or plant-based facilities are being built?",
+    "top_k": 3,
+    "expected_categories": ["NEW_BUILDS"],
+    "required_terms_any": ["oat", "plant", "facility"],
+    "require_citations": true,
+    "expect_abstention": false,
+    "notes": "Demo Plant-Based Inc. greenfield — synthetic fixture"
+  },
+  {
+    "id": "example_packaging_recyclable",
+    "query": "What recyclable or sustainable packaging changes are described?",
+    "top_k": 3,
+    "expected_categories": ["PACKAGING"],
+    "required_terms_any": ["recyclable", "packaging", "sustainab"],
+    "require_citations": true,
+    "expect_abstention": false,
+    "notes": "Illustrative Pack Co. paper packaging — synthetic fixture"
+  },
+  {
+    "id": "example_product_launches_yogurt",
+    "query": "What yogurt or high-protein product launches are mentioned?",
+    "top_k": 3,
+    "expected_categories": ["PRODUCT_LAUNCHES"],
+    "required_terms_any": ["yogurt", "protein", "launch"],
+    "require_citations": true,
+    "expect_abstention": false,
+    "notes": "Example Wellness Brands launch — synthetic fixture"
+  },
+  {
+    "id": "example_negative_irrelevant",
+    "query": "quarterly earnings per share dividend guidance",
+    "top_k": 3,
+    "expected_categories": [],
+    "required_terms_any": [],
+    "require_citations": false,
+    "expect_abstention": true,
+    "max_top_similarity": 0.55,
+    "notes": "Out-of-domain — model should abstain or say evidence is insufficient"
+  },
+  {
+    "id": "closures_bakery_general",
+    "query": "What bakery or food facility closures are mentioned in the sources?",
+    "top_k": 3,
+    "expected_categories": ["CLOSURES"],
+    "required_terms_any": ["closur", "bakery", "plant", "facility", "shutdown"],
+    "require_citations": true,
+    "expect_abstention": false,
+    "suite": "private",
+    "notes": "Matches generate.py sample question — works on private corpus"
+  },
+  {
+    "id": "packaging_plastic_reduction",
+    "query": "What packaging changes reduce plastic use?",
+    "top_k": 3,
+    "expected_categories": ["PACKAGING"],
+    "required_terms_any": ["plastic", "packaging", "recycl"],
+    "require_citations": true,
+    "expect_abstention": false,
+    "suite": "private",
+    "notes": "Cross-corpus packaging query"
+  }
+]

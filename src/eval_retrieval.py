@@ -10,16 +10,24 @@ Metrics per query at k in eval_at_k (default [1, 3, 5]):
   - MRR (by first category match rank)
 
 Run from repo root:
-    HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONPATH=src python src/eval_retrieval.py > eval_retrieval_log.txt 2>&1
+    HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONPATH=src python src/eval_retrieval.py --suite example
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from pathlib import Path
 from typing import Any
 
+from eval_common import (
+    SUITE_CHOICES,
+    check_retrieval_thresholds,
+    filter_by_suite,
+    load_thresholds,
+)
+from eval_scoring import rate
 from retrieval import DEFAULT_TOP_K, retrieve
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -64,37 +72,33 @@ def _avg_similarity(results: list[dict[str, Any]], k: int) -> float:
     return sum(float(r.get("similarity", 0.0)) for r in top) / len(top)
 
 
-def main() -> int:
+def run_eval(suite: str = "all") -> dict[str, Any]:
     if not LABELED_QUERIES.is_file():
-        print(f"ERROR: {LABELED_QUERIES} not found.")
-        return 1
+        return {"passed": False, "error": f"{LABELED_QUERIES} not found.", "metrics": {}}
 
     with LABELED_QUERIES.open(encoding="utf-8") as f:
-        queries = json.load(f)
+        all_queries = json.load(f)
 
+    queries = filter_by_suite(all_queries, suite)
     if not queries:
-        print("ERROR: labeled_queries.json is empty.")
-        return 1
+        return {
+            "passed": False,
+            "error": f"No labeled queries for suite '{suite}'.",
+            "metrics": {},
+            "suite": suite,
+            "query_count": 0,
+        }
 
-    max_k = max(
-        max(entry.get("eval_at_k", [PRIMARY_K])) for entry in queries
-    )
+    max_k = max(max(entry.get("eval_at_k", [PRIMARY_K])) for entry in queries)
     max_k = max(max_k, PRIMARY_K)
 
-    print(f"Labeled queries : {len(queries)}")
-    print(f"Max eval k      : {max_k}")
-    print(f"Primary k       : {PRIMARY_K}")
-    print()
-
     k_values = sorted({k for entry in queries for k in entry.get("eval_at_k", [1, 3, 5])})
-
     aggregates: dict[int, dict[str, list[float | bool]]] = {
         k: {"category_hit": [], "source_hit": [], "mrr": [], "avg_similarity": []}
         for k in k_values
     }
 
     for entry in queries:
-        query_id = entry.get("id", "unknown")
         query = entry["query"]
         expected_categories = entry.get("expected_categories", [])
         expected_sources = entry.get("expected_sources_any", [])
@@ -102,49 +106,91 @@ def main() -> int:
 
         results = retrieve(query, top_k=max_k)
 
-        print(f"[{query_id}] {query}")
         for k in eval_at_k:
-            cat_hit = _category_hit(results, expected_categories, k)
-            src_hit = _source_hit(results, expected_sources, k) if expected_sources else None
-            mrr = _mrr(results, expected_categories, k) if expected_categories else 0.0
-            avg_sim = _avg_similarity(results, k)
-
-            aggregates[k]["category_hit"].append(cat_hit)
-            if expected_sources:
-                aggregates[k]["source_hit"].append(src_hit)
             if expected_categories:
-                aggregates[k]["mrr"].append(mrr)
-            aggregates[k]["avg_similarity"].append(avg_sim)
+                aggregates[k]["category_hit"].append(
+                    _category_hit(results, expected_categories, k)
+                )
+                aggregates[k]["mrr"].append(_mrr(results, expected_categories, k))
+            if expected_sources:
+                aggregates[k]["source_hit"].append(
+                    _source_hit(results, expected_sources, k)
+                )
+            aggregates[k]["avg_similarity"].append(_avg_similarity(results, k))
 
-            src_part = f" source_hit@{k}={src_hit}" if expected_sources else ""
-            print(
-                f"  category_hit@{k}={cat_hit}{src_part} "
-                f"mrr@{k}={mrr:.3f} avg_sim@{k}={avg_sim:.3f}"
-            )
-        print()
-
-    print("=" * 60)
-    print("AGGREGATE SUMMARY")
-    print("=" * 60)
+    metrics: dict[str, float] = {}
     for k in k_values:
-        cat_rate = sum(aggregates[k]["category_hit"]) / len(aggregates[k]["category_hit"])
+        cat_vals = aggregates[k]["category_hit"]
+        if cat_vals:
+            metrics[f"category_hit_rate@{k}"] = rate(cat_vals)
         mrr_vals = aggregates[k]["mrr"]
-        mrr_avg = sum(mrr_vals) / len(mrr_vals) if mrr_vals else 0.0
-        sim_avg = sum(aggregates[k]["avg_similarity"]) / len(aggregates[k]["avg_similarity"])
-        line = f"k={k}: category_hit_rate={cat_rate:.1%} mrr={mrr_avg:.3f} avg_similarity={sim_avg:.3f}"
-        if aggregates[k]["source_hit"]:
-            src_rate = sum(aggregates[k]["source_hit"]) / len(aggregates[k]["source_hit"])
-            line += f" source_hit_rate={src_rate:.1%}"
+        if mrr_vals:
+            metrics[f"mrr@{k}"] = sum(mrr_vals) / len(mrr_vals)
+        sim_vals = aggregates[k]["avg_similarity"]
+        if sim_vals:
+            metrics[f"avg_similarity@{k}"] = sum(sim_vals) / len(sim_vals)
+        src_vals = aggregates[k]["source_hit"]
+        if src_vals:
+            metrics[f"source_hit_rate@{k}"] = rate(src_vals)
+
+    thresholds = load_thresholds(suite)["retrieval"]
+    primary_k = int(thresholds.get("primary_k", PRIMARY_K))
+    passed, failures = check_retrieval_thresholds(metrics, thresholds)
+
+    return {
+        "passed": passed,
+        "suite": suite,
+        "query_count": len(queries),
+        "primary_k": primary_k,
+        "metrics": metrics,
+        "thresholds": thresholds,
+        "failures": failures,
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Evaluate retrieval quality.")
+    parser.add_argument(
+        "--suite",
+        choices=SUITE_CHOICES,
+        default="all",
+        help="Eval suite: example (public quickstart), private, or all.",
+    )
+    args = parser.parse_args(argv)
+
+    result = run_eval(suite=args.suite)
+    if result.get("error"):
+        print(f"ERROR: {result['error']}")
+        return 1
+
+    print(f"Suite           : {result['suite']}")
+    print(f"Labeled queries : {result['query_count']}")
+    print(f"Primary k       : {result['primary_k']}")
+    print()
+
+    metrics = result["metrics"]
+    k_values = sorted(
+        {int(key.split("@")[1]) for key in metrics if "@" in key and key.split("@")[1].isdigit()}
+    )
+    for k in k_values:
+        line = (
+            f"k={k}: category_hit_rate={metrics.get(f'category_hit_rate@{k}', 0.0):.1%} "
+            f"mrr={metrics.get(f'mrr@{k}', 0.0):.3f} "
+            f"avg_similarity={metrics.get(f'avg_similarity@{k}', 0.0):.3f}"
+        )
+        if f"source_hit_rate@{k}" in metrics:
+            line += f" source_hit_rate={metrics[f'source_hit_rate@{k}']:.1%}"
         print(line)
 
-    # Primary pass line
-    primary_cat = aggregates.get(PRIMARY_K, {}).get("category_hit", [])
-    if primary_cat:
-        primary_rate = sum(primary_cat) / len(primary_cat)
-        print()
-        print(f"PRIMARY (k={PRIMARY_K}) category_hit_rate: {primary_rate:.1%}")
+    print()
+    if result["passed"]:
+        print("PASSED — retrieval metrics meet suite thresholds.")
+        return 0
 
-    return 0
+    print("FAILED — retrieval metrics below suite thresholds:")
+    for failure in result["failures"]:
+        print(f"  - {failure}")
+    return 1
 
 
 if __name__ == "__main__":

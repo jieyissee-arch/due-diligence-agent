@@ -21,6 +21,9 @@ venv/
 # Pipeline logs
 *_log.txt
 
+# Local session notes — never commit
+HANDOFF.md
+
 # macOS
 .DS_Store
 

@@ -1,0 +1,44 @@
+name: RAG Eval
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  rag-eval:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Prepare synthetic corpus
+        run: cp demo_data.example.json demo_data.json
+
+      - name: Build local RAG index
+        run: PYTHONPATH=src python src/build_index.py
+
+      - name: Run unit tests
+        run: PYTHONPATH=src pytest tests/ -q
+
+      - name: Run offline eval suite (example)
+        run: PYTHONPATH=src python src/eval_run_all.py --suite example --offline
+
+      - name: Upload eval report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rag-eval-report
+          path: output/eval_report.json
+          retention-days: 30

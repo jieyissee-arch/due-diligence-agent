@@ -10,9 +10,11 @@ Run from repo root:
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 from chunking import MAX_WORDS, MIN_WORDS, _word_count, chunk_records
 
@@ -20,27 +22,33 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DEMO_DATA = REPO_ROOT / "demo_data.json"
 
 
-def main() -> int:
-    if not DEMO_DATA.is_file():
-        print(f"ERROR: {DEMO_DATA} not found.")
-        return 1
+def run_eval(data_path: Path | None = None) -> dict[str, Any]:
+    path = (data_path or DEMO_DATA).expanduser().resolve()
+    if not path.is_file():
+        return {
+            "passed": False,
+            "error": f"Demo data not found: {path}",
+            "record_count": 0,
+            "chunk_count": 0,
+            "failures": [f"Demo data not found: {path}"],
+        }
 
-    with DEMO_DATA.open(encoding="utf-8") as f:
+    with path.open(encoding="utf-8") as f:
         records = json.load(f)
 
     if not isinstance(records, list) or not records:
-        print("ERROR: demo_data.json must be a non-empty JSON array.")
-        return 1
+        return {
+            "passed": False,
+            "error": f"{path} must contain a non-empty JSON array.",
+            "record_count": 0,
+            "chunk_count": 0,
+            "failures": [f"{path} must contain a non-empty JSON array."],
+        }
 
     chunks = chunk_records(records)
     failures: list[str] = []
     multi_chunk_records = 0
 
-    print(f"Input records     : {len(records)}")
-    print(f"Output chunks     : {len(chunks)}")
-    print(f"Chunk word bounds : {MIN_WORDS}-{MAX_WORDS} (target for long text)")
-
-    # Map record index to chunk count
     record_chunk_counts: dict[int, int] = {}
     for chunk in chunks:
         chunk_id = chunk.get("chunk_id", "")
@@ -52,7 +60,7 @@ def main() -> int:
             except ValueError:
                 pass
 
-    for record_index, record in enumerate(records):
+    for record_index, _record in enumerate(records):
         count = record_chunk_counts.get(record_index, 0)
         if count == 0:
             failures.append(f"Record {record_index} produced no chunks.")
@@ -71,8 +79,38 @@ def main() -> int:
             )
 
     multi_chunk_rate = multi_chunk_records / len(records) if records else 0.0
-    print(f"Multi-chunk records : {multi_chunk_records} ({multi_chunk_rate:.1%})")
 
+    return {
+        "passed": not failures,
+        "record_count": len(records),
+        "chunk_count": len(chunks),
+        "multi_chunk_records": multi_chunk_records,
+        "multi_chunk_rate": multi_chunk_rate,
+        "word_bounds": {"min": MIN_WORDS, "max": MAX_WORDS},
+        "failures": failures,
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    _ = argv
+    result = run_eval()
+
+    if result.get("error"):
+        print(f"ERROR: {result['error']}")
+        return 1
+
+    print(f"Input records     : {result['record_count']}")
+    print(f"Output chunks     : {result['chunk_count']}")
+    print(
+        f"Chunk word bounds : {result['word_bounds']['min']}-"
+        f"{result['word_bounds']['max']} (target for long text)"
+    )
+    print(
+        f"Multi-chunk records : {result['multi_chunk_records']} "
+        f"({result['multi_chunk_rate']:.1%})"
+    )
+
+    failures = result["failures"]
     if failures:
         print(f"\nFAILED — {len(failures)} issue(s):")
         for issue in failures[:20]:
