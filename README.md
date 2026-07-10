@@ -21,6 +21,10 @@ cp demo_data.example.json demo_data.json
 HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONPATH=src python3 src/build_index.py
 PYTHONPATH=src python3 src/eval_run_all.py --suite example --offline
 
+# Dashboard (requires built index + ANTHROPIC_API_KEY for briefing/chat)
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONPATH=src python3 src/api.py
+# Open http://127.0.0.1:7860
+
 # Extraction quickstart (5 public article URLs in inputs/urls.json)
 python3 src/agent.py
 ```
@@ -33,6 +37,10 @@ python3 src/agent.py
 | Output quality | [`src/schema.py`](src/schema.py) | Strict JSON schema, five-category taxonomy |
 | RAG retrieval | [`src/retrieval.py`](src/retrieval.py) | Local Chroma, cosine similarity, provider consistency checks |
 | Grounded generation | [`src/generate.py`](src/generate.py) | Retrieved passages in prompt, citation instructions |
+| Dashboard analysis | [`src/analysis.py`](src/analysis.py) | Pandas aggregations, KPIs, quarterly/growth signals |
+| AI briefings | [`src/insights.py`](src/insights.py) | Claude findings by investment theme + urgency; cached JSON |
+| Analyst chat | [`src/chat.py`](src/chat.py) | History-aware RAG drill-down |
+| Dashboard API + UI | [`src/api.py`](src/api.py), [`src/static/index.html`](src/static/index.html) | FastAPI REST + single-page IC dashboard |
 | Retrieval eval | [`src/eval_retrieval.py`](src/eval_retrieval.py), [`eval/labeled_queries.json`](eval/labeled_queries.json) | Labeled queries, category_hit@k, MRR |
 | Generation eval | [`src/eval_generation.py`](src/eval_generation.py), [`eval/labeled_answers.json`](eval/labeled_answers.json) | Citation validity, term grounding, abstention |
 | Eval orchestrator | [`src/eval_run_all.py`](src/eval_run_all.py) | Chunking + retrieval + generation; writes `output/eval_report.json` |
@@ -51,6 +59,7 @@ Two complementary pipelines:
 
 1. **Extraction** — fetch articles, extract structured events with Claude, validate against a schema, retry on failure, write a consolidated report. Runnable locally or via GitHub Actions.
 2. **RAG** — index extracted events locally, retrieve relevant passages by semantic search, answer analyst questions with Claude grounded in retrieved chunks and explicit source citations.
+3. **IC dashboard** — FastAPI backend + browser UI presenting KPIs, investment-theme charts (Plotly), Claude-generated findings, and an "Ask me…" RAG chat for drill-down.
 
 A companion private data repo (`news_scrape_mar26`) holds the full scraped and extracted corpus (~2k+ events from 3k articles). This public repo ships code, a synthetic fixture, and eval queries — not real research data.
 
@@ -105,6 +114,16 @@ flowchart TB
         EvalR --> RunAll
         EvalG --> RunAll
     end
+
+    subgraph dashboard [IC dashboard]
+        Data --> Analysis[analysis.py]
+        Analysis --> API[api.py]
+        Insights[insights.py] --> API
+        Chat[chat.py] --> API
+        Chroma --> Chat
+        Gen --> Chat
+        API --> UI[static/index.html]
+    end
 ```
 
 ### Event taxonomy
@@ -141,6 +160,11 @@ due-diligence-agent/
 │   ├── retrieval.py          # Chroma index + retrieve()
 │   ├── generate.py           # RAG prompt + Claude generation
 │   ├── build_index.py        # Chunk → embed → Chroma (one shot)
+│   ├── analysis.py           # Dashboard aggregations + KPI derivation
+│   ├── insights.py           # Claude briefing (themed findings, cached)
+│   ├── chat.py               # History-aware RAG chat
+│   ├── api.py                # FastAPI backend for dashboard + chat
+│   ├── static/index.html     # IC dashboard single-page UI
 │   ├── eval_chunking.py      # Chunking invariant checks
 │   ├── eval_retrieval.py     # Retrieval metrics
 │   ├── eval_generation.py    # Generation grounding metrics
@@ -212,6 +236,34 @@ python3 src/agent.py
 ```
 
 Add `ANTHROPIC_API_KEY` as a repository secret for CI. Report artifact: `output/report.json`.
+
+### IC dashboard
+
+Requires a built Chroma index and `ANTHROPIC_API_KEY` (for briefing generation and chat).
+
+```bash
+# After build_index.py (Path A or B above)
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONPATH=src python3 src/api.py
+# Open http://127.0.0.1:7860  (override port via API_PORT in .env)
+```
+
+**UI layout**
+
+| Section | Source | Notes |
+|---------|--------|-------|
+| KPI sub-bar | `analysis.py` | Events, coverage, net signal, packaging/launch YoY |
+| Investment themes | `analysis.py` + Plotly | Revenue outlook, packaging, innovation, market context |
+| Findings | `insights.py` | Claude findings by theme + urgency; auto-loads on first visit; cached to `output/insights_briefing.json` |
+| Ask me… | `chat.py` | Suggested prompt chips + free-text RAG chat |
+
+**REST endpoints** (`src/api.py`)
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/api/dashboard` | KPIs, narratives, Plotly chart specs |
+| `GET` | `/api/briefing` | Cached Claude briefing |
+| `POST` | `/api/refresh-briefing` | Regenerate and cache briefing |
+| `POST` | `/api/chat` | History-aware RAG turn |
 
 ---
 
@@ -316,7 +368,7 @@ Historical commits may contain a small early demo dataset. Current policy: real 
 - Demo corpus uses **event-level snippets**, not full article text; chunking is mostly one event per chunk.
 - Retrieval eval is **category/source-based**, not human-judged relevance labels.
 - Generation eval uses **deterministic citation/term checks**, not LLM-as-judge faithfulness scoring.
-- **Interactive frontend** — analyst dashboard (timeseries, trends, drill-down chat) planned as the next phase; current repo is API/script-driven.
+- **Dashboard** — FastAPI + static HTML UI; briefing generation is Claude-dependent and cached locally. An interim Gradio prototype (`src/app.py`) exists locally but is superseded by `api.py`.
 - Full scrape orchestration lives in the private `news_scrape_mar26` repo (Apify crawlers, JSONL outputs).
 
 ---
