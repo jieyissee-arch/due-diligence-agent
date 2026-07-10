@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Food Manufacturing &amp; Packaging — IC Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #F7F9FC;
+      --surface:      #FFFFFF;
+      --surface-2:    #F1F5F9;
+      --border:       #E2E8F0;
+      --border-strong:#CBD5E1;
+      --text:         #0F172A;
+      --text-2:       #334155;
+      --muted:        #64748B;
+      --accent:       #1D4ED8;
+      --accent-light: #EFF6FF;
+      --accent-border:#BFDBFE;
+      --green:        #047857;
+      --green-light:  #ECFDF5;
+      --green-border: #A7F3D0;
+      --red:          #B91C1C;
+      --red-light:    #FEF2F2;
+      --red-border:   #FECACA;
+      --amber:        #B45309;
+      --amber-light:  #FFFBEB;
+      --amber-border: #FDE68A;
+      --blue:         #1D4ED8;
+      --blue-light:   #EFF6FF;
+      --blue-border:  #BFDBFE;
+      --shadow-sm:    0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow:       0 4px 16px rgba(0,0,0,0.07), 0 2px 6px rgba(0,0,0,0.04);
+      --radius:       12px;
+      --radius-sm:    8px;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────── */
+    #header {
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    #header-brand { display: flex; flex-direction: column; gap: 1px; }
+    #header-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+    #header-subtitle {
+      font-size: 11.5px;
+      color: var(--muted);
+    }
+    #header-badge {
+      margin-left: auto;
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 4px;
+      background: var(--accent-light);
+      border: 1px solid var(--accent-border);
+      color: var(--accent);
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+    }
+
+    /* ── KPI sub-bar ─────────────────────────────────────────────── */
+    #kpi-bar {
+      display: flex;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+    }
+    .kpi-card {
+      flex: 1;
+      padding: 13px 20px;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      transition: background 0.15s;
+    }
+    .kpi-card:last-child { border-right: none; }
+    .kpi-card:hover { background: var(--surface-2); }
+    .kpi-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--muted);
+    }
+    .kpi-value {
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1.1;
+      color: var(--text);
+    }
+    .kpi-card.positive .kpi-value { color: var(--green); }
+    .kpi-card.negative .kpi-value { color: var(--red); }
+
+    /* ── Main layout ─────────────────────────────────────────────── */
+    #main { max-width: 1280px; margin: 0 auto; padding: 24px 28px 60px; }
+
+    /* ── Theme tab strip ─────────────────────────────────────────── */
+    #theme-tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+    .theme-tab-btn {
+      padding: 11px 20px;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.18s;
+      margin-bottom: -1px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .theme-tab-btn:hover { color: var(--text); }
+    .theme-tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* ── Theme panes ─────────────────────────────────────────────── */
+    .theme-pane { display: none; }
+    .theme-pane.active { display: block; }
+
+    /* ── Narrative ───────────────────────────────────────────────── */
+    .narrative {
+      background: var(--accent-light);
+      border: 1px solid var(--accent-border);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      padding: 14px 18px;
+      margin-bottom: 20px;
+      font-size: 13.5px;
+      line-height: 1.75;
+      color: var(--text-2);
+    }
+
+    /* ── Chart container ─────────────────────────────────────────── */
+    .chart-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 8px 4px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+    .chart-div { width: 100%; height: 380px; }
+
+    /* ── Findings section ────────────────────────────────────────── */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+    .findings-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      gap: 12px;
+    }
+    .findings-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .findings-meta {
+      font-size: 11px;
+      color: var(--muted);
+      margin-left: 8px;
+      font-weight: 400;
+    }
+
+    /* ── Regen button ────────────────────────────────────────────── */
+    #refresh-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 12px;
+      background: var(--surface);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    #refresh-btn:hover { border-color: var(--border-strong); color: var(--text); }
+    #refresh-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    #refresh-btn .spinner {
+      display: none;
+      width: 11px;
+      height: 11px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    #refresh-btn.loading .spinner { display: inline-block; }
+    #refresh-btn.loading .btn-icon { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Finding cards ───────────────────────────────────────────── */
+    .finding-card {
+      margin-bottom: 8px;
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      box-shadow: var(--shadow-sm);
+      transition: box-shadow 0.15s, border-color 0.15s;
+    }
+    .finding-card:hover { box-shadow: var(--shadow); border-color: var(--border-strong); }
+
+    .finding-card summary {
+      padding: 12px 16px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      list-style: none;
+      user-select: none;
+    }
+    .finding-card summary::-webkit-details-marker { display: none; }
+
+    /* Chevron */
+    .finding-card summary .chevron {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      background: var(--surface-2);
+      transition: transform 0.2s;
+      margin-left: auto;
+    }
+    .finding-card summary .chevron svg { width: 10px; height: 10px; }
+    .finding-card[open] summary .chevron { transform: rotate(90deg); }
+
+    /* Urgency badge */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.05em;
+      flex-shrink: 0;
+    }
+
+    /* Signal dots visual */
+    .signal-dots {
+      display: flex;
+      gap: 3px;
+      flex-shrink: 0;
+    }
+    .signal-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--border-strong);
+    }
+
+    .finding-body {
+      padding: 14px 18px;
+      font-size: 13px;
+      line-height: 1.8;
+      color: var(--text-2);
+      border-top: 1px solid var(--border);
+    }
+    .finding-body p { margin: 6px 0; }
+    .finding-body strong { color: var(--text); }
+    .finding-body ul { margin: 6px 0 6px 20px; }
+    .finding-body li { margin: 4px 0; }
+
+    /* Finding body metadata strip */
+    .finding-meta-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .meta-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: var(--surface-2);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .meta-tag svg { width: 11px; height: 11px; flex-shrink: 0; }
+
+    /* Urgency colour tokens */
+    .urgency-URGENT   { border-color: var(--red-border); }
+    .urgency-URGENT summary   { background: var(--red-light); }
+    .urgency-URGENT .badge    { background: var(--red-light); color: var(--red); border: 1px solid var(--red-border); }
+    .urgency-URGENT .signal-dot.filled { background: var(--red); }
+
+    .urgency-RISK     { border-color: var(--amber-border); }
+    .urgency-RISK summary     { background: var(--amber-light); }
+    .urgency-RISK .badge      { background: var(--amber-light); color: var(--amber); border: 1px solid var(--amber-border); }
+    .urgency-RISK .signal-dot.filled { background: var(--amber); }
+
+    .urgency-OPPORTUNITY { border-color: var(--green-border); }
+    .urgency-OPPORTUNITY summary  { background: var(--green-light); }
+    .urgency-OPPORTUNITY .badge   { background: var(--green-light); color: var(--green); border: 1px solid var(--green-border); }
+    .urgency-OPPORTUNITY .signal-dot.filled { background: var(--green); }
+
+    .urgency-NOTE     { border-color: var(--blue-border); }
+    .urgency-NOTE summary     { background: var(--blue-light); }
+    .urgency-NOTE .badge      { background: var(--blue-light); color: var(--blue); border: 1px solid var(--blue-border); }
+    .urgency-NOTE .signal-dot.filled { background: var(--blue); }
+
+    /* ── Auto-loading state ──────────────────────────────────────── */
+    .auto-loading-msg {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px 20px;
+      color: var(--muted);
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .mini-spin {
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      flex-shrink: 0;
+      animation: spin 0.8s linear infinite;
+    }
+    .placeholder-msg {
+      color: var(--muted);
+      font-style: italic;
+      padding: 20px 4px;
+      font-size: 13px;
+    }
+
+    /* ── Ask me section ──────────────────────────────────────────── */
+    #chat-section {
+      margin-top: 40px;
+      border-top: 2px solid var(--border);
+      padding-top: 28px;
+    }
+    #chat-section h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .chat-desc {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 18px;
+    }
+
+    /* Suggested prompts */
+    .prompt-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .prompt-chip {
+      padding: 8px 14px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      color: var(--text-2);
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: left;
+      line-height: 1.4;
+    }
+    .prompt-chip:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-light);
+    }
+
+    /* Inline text input */
+    .chat-input-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    #chat-input {
+      flex: 1;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-family: 'Inter', sans-serif;
+      font-size: 13.5px;
+      color: var(--text);
+      background: var(--surface);
+      outline: none;
+      height: 42px;
+      line-height: 1.4;
+      transition: border-color 0.15s;
+    }
+    #chat-input::placeholder { color: var(--muted); }
+    #chat-input:focus { border-color: var(--accent); }
+    #chat-send {
+      padding: 10px 20px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      white-space: nowrap;
+      height: 42px;
+    }
+    #chat-send:hover { opacity: 0.88; }
+    #chat-send:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* Response area */
+    #chat-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      max-height: 360px;
+      overflow-y: auto;
+      padding: 16px;
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 14px;
+      box-shadow: var(--shadow-sm);
+    }
+    #chat-box.has-messages { display: flex; }
+    .chat-msg {
+      max-width: 82%;
+      padding: 10px 15px;
+      border-radius: 12px;
+      font-size: 13.5px;
+      line-height: 1.65;
+      word-wrap: break-word;
+    }
+    .chat-msg.user {
+      align-self: flex-end;
+      background: var(--accent);
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .chat-msg.assistant {
+      align-self: flex-start;
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+    }
+    .chat-msg.thinking {
+      align-self: flex-start;
+      color: var(--muted);
+      font-style: italic;
+      border: 1px dashed var(--border);
+      border-bottom-left-radius: 4px;
+    }
+    #sources-panel {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+    #sources-panel h4 {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* ── Loading overlay ─────────────────────────────────────────── */
+    #loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(247,249,252,0.90);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      z-index: 300;
+      font-size: 14px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .big-spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    /* ── Error banner ────────────────────────────────────────────── */
+    .error-banner {
+      background: var(--red-light);
+      border: 1px solid var(--red-border);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      color: var(--red);
+      font-size: 13px;
+      margin-bottom: 14px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Loading overlay ────────────────────────────────────────────────────── -->
+<div id="loading-overlay">
+  <div class="big-spinner"></div>
+  <span>Loading dashboard…</span>
+</div>
+
+<!-- ── Header ─────────────────────────────────────────────────────────────── -->
+<header id="header">
+  <div id="header-brand">
+    <div id="header-title">Food Manufacturing &amp; Packaging</div>
+    <div id="header-subtitle">Due diligence intelligence · packaging manufacturer investment thesis</div>
+  </div>
+  
+</header>
+
+<!-- ── KPI sub-bar ────────────────────────────────────────────────────────── -->
+<div id="kpi-bar">
+  <div class="kpi-card" id="kpi-events">
+    <div class="kpi-label">Events</div>
+    <div class="kpi-value" id="kv-events">—</div>
+  </div>
+  <div class="kpi-card" id="kpi-range">
+    <div class="kpi-label">Coverage</div>
+    <div class="kpi-value" id="kv-range">—</div>
+  </div>
+  <div class="kpi-card" id="kpi-net">
+    <div class="kpi-label">Net Signal</div>
+    <div class="kpi-value" id="kv-net">—</div>
+  </div>
+  <div class="kpi-card" id="kpi-pkg">
+    <div class="kpi-label">Pkg YoY</div>
+    <div class="kpi-value" id="kv-pkg">—</div>
+  </div>
+  <div class="kpi-card" id="kpi-launches">
+    <div class="kpi-label">Launch YoY</div>
+    <div class="kpi-value" id="kv-launches">—</div>
+  </div>
+</div>
+
+<!-- ── Main content ───────────────────────────────────────────────────────── -->
+<div id="main">
+
+  <!-- Theme tabs -->
+  <div id="theme-tabs">
+    <button class="theme-tab-btn active" data-tab="0">📈 Revenue Outlook</button>
+    <button class="theme-tab-btn" data-tab="1">📦 Packaging Sector</button>
+    <button class="theme-tab-btn" data-tab="2">🚀 Innovation Pipeline</button>
+    <button class="theme-tab-btn" data-tab="3">🗺️ Market Context</button>
+  </div>
+
+  <!-- Pane 0: Revenue Outlook -->
+  <div class="theme-pane active" id="pane-0">
+    <p class="narrative" id="narrative-0">Loading…</p>
+    <div class="chart-wrap"><div class="chart-div" id="chart-capacity"></div></div>
+    <hr class="divider" />
+    <div class="findings-header">
+      <div>
+        <span class="findings-title">Findings</span>
+        <span class="findings-meta" id="findings-meta-0"></span>
+      </div>
+      <button id="refresh-btn" onclick="doRefresh()" title="Regenerate findings">
+        <div class="spinner"></div>
+        <span class="btn-icon">↻</span> Regenerate
+      </button>
+    </div>
+    <div id="findings-0" class="findings-area"></div>
+  </div>
+
+  <!-- Pane 1: Packaging Sector -->
+  <div class="theme-pane" id="pane-1">
+    <p class="narrative" id="narrative-1">Loading…</p>
+    <div class="chart-wrap"><div class="chart-div" id="chart-packaging"></div></div>
+    <hr class="divider" />
+    <div class="findings-header">
+      <div>
+        <span class="findings-title">Findings</span>
+        <span class="findings-meta" id="findings-meta-1"></span>
+      </div>
+    </div>
+    <div id="findings-1" class="findings-area"></div>
+  </div>
+
+  <!-- Pane 2: Innovation Pipeline -->
+  <div class="theme-pane" id="pane-2">
+    <p class="narrative" id="narrative-2">Loading…</p>
+    <div class="chart-wrap"><div class="chart-div" id="chart-launches"></div></div>
+    <hr class="divider" />
+    <div class="findings-header">
+      <div>
+        <span class="findings-title">Findings</span>
+        <span class="findings-meta" id="findings-meta-2"></span>
+      </div>
+    </div>
+    <div id="findings-2" class="findings-area"></div>
+  </div>
+
+  <!-- Pane 3: Market Context -->
+  <div class="theme-pane" id="pane-3">
+    <p class="narrative" id="narrative-3">Loading…</p>
+    <div class="chart-wrap"><div class="chart-div" id="chart-market"></div></div>
+    <hr class="divider" />
+    <div class="findings-header">
+      <div>
+        <span class="findings-title">Findings</span>
+        <span class="findings-meta" id="findings-meta-3"></span>
+      </div>
+    </div>
+    <div id="findings-3" class="findings-area"></div>
+  </div>
+
+  <!-- ── Ask me ────────────────────────────────────────────────── -->
+  <div id="chat-section">
+    <h2>Ask me…</h2>
+    <p class="chat-desc">Drill into specific events, companies, or trends. Grounded in the full corpus.</p>
+
+    <div class="prompt-chips">
+      <button class="prompt-chip" onclick="usePrompt(this)">Which companies announced capacity expansions in the last 12 months?</button>
+      <button class="prompt-chip" onclick="usePrompt(this)">What plant closures have been reported, and which regions are most affected?</button>
+      <button class="prompt-chip" onclick="usePrompt(this)">Which product launches signal growing demand for sustainable packaging?</button>
+    </div>
+
+    <div class="chat-input-row">
+      <input type="text" id="chat-input" placeholder="Or type your own question…" />
+      <button id="chat-send" onclick="sendChat()">Ask →</button>
+    </div>
+
+    <div id="chat-box"></div>
+
+    <div id="sources-panel" style="display:none">
+      <h4>Retrieved source passages</h4>
+      <div id="sources-content"></div>
+    </div>
+  </div>
+
+</div><!-- /#main -->
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+const state = {
+  dashboardData: null,
+  briefing: null,
+  chatHistory: [],
+  activeThemeTab: 0,
+};
+
+const THEME_KEYS = ['CUSTOMER CAPACITY','PACKAGING SECTOR','INNOVATION PIPELINE','MARKET MOMENTUM'];
+const CHART_IDS  = ['chart-capacity','chart-packaging','chart-launches','chart-market'];
+const CHART_KEYS = ['capacity','packaging','launches','market'];
+const PLOTLY_CFG = { responsive: true, displayModeBar: false };
+
+// Light-mode Plotly layout override — legend forced to bottom, full-width plot
+const LIGHT_LAYOUT = {
+  paper_bgcolor: '#FFFFFF',
+  plot_bgcolor:  '#F7F9FC',
+  font: { color: '#334155', family: 'Inter, sans-serif', size: 12 },
+  xaxis: { gridcolor: '#E2E8F0', linecolor: '#CBD5E1', tickcolor: '#94A3B8', zerolinecolor: '#E2E8F0' },
+  yaxis: { gridcolor: '#E2E8F0', linecolor: '#CBD5E1', tickcolor: '#94A3B8', zerolinecolor: '#E2E8F0' },
+  legend: { orientation: 'h', x: 0, y: -0.18, bgcolor: 'rgba(0,0,0,0)', bordercolor: 'rgba(0,0,0,0)', font: { size: 11 } },
+  margin: { t: 36, b: 80, l: 56, r: 20 },
+};
+
+const URGENCY_CFG = {
+  URGENT:      { emoji: '🔴', dots: 3, label: 'URGENT' },
+  RISK:        { emoji: '⚠️', dots: 2, label: 'RISK' },
+  OPPORTUNITY: { emoji: '✅', dots: 2, label: 'OPPORTUNITY' },
+  NOTE:        { emoji: 'ℹ️', dots: 1, label: 'NOTE' },
+};
+
+// ── Markdown → HTML ───────────────────────────────────────────────────────────
+function mdToHtml(text) {
+  if (!text) return '';
+  const lines = text.split('\n');
+  const out = [];
+  let inList = false;
+  for (const line of lines) {
+    const s = line.trimEnd();
+    if (s.startsWith('- ') || s.startsWith('* ')) {
+      if (!inList) { out.push('<ul>'); inList = true; }
+      out.push(`<li>${inlineMd(s.slice(2))}</li>`);
+    } else {
+      if (inList) { out.push('</ul>'); inList = false; }
+      if (s) out.push(`<p>${inlineMd(s)}</p>`);
+    }
+  }
+  if (inList) out.push('</ul>');
+  return out.join('\n');
+}
+function inlineMd(s) {
+  return s.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>');
+}
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── SVG icons ─────────────────────────────────────────────────────────────────
+const ICONS = {
+  calendar: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M5 1v4M11 1v4M2 7h12"/></svg>`,
+  building: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="1"/><path d="M6 6h1v1H6zM9 6h1v1H9zM6 9h1v1H6zM9 9h1v1H9z"/></svg>`,
+  trend:    `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12l4-4 3 2 5-6"/><path d="M11 4h3v3"/></svg>`,
+  location: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="6.5" r="2.5"/><path d="M8 2C5.5 2 3.5 4 3.5 6.5c0 3.5 4.5 7.5 4.5 7.5s4.5-4 4.5-7.5C12.5 4 10.5 2 8 2z"/></svg>`,
+  chevron:  `<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 2l4 4-4 4"/></svg>`,
+};
+
+function signalDots(urgency) {
+  const cfg = URGENCY_CFG[urgency] || URGENCY_CFG.NOTE;
+  return `<div class="signal-dots" title="Signal strength">
+    ${[1,2,3].map(i => `<div class="signal-dot${i <= cfg.dots ? ' filled' : ''}"></div>`).join('')}
+  </div>`;
+}
+
+// ── Extract meta tags from finding content ────────────────────────────────────
+function extractMetaTags(content) {
+  const tags = [];
+  // Companies (look for bold text that looks like company names)
+  const companies = [...(content.matchAll(/\*\*([A-Z][A-Za-z\s&,.-]{2,30})\*\*/g))].map(m => m[1]).slice(0, 3);
+  companies.forEach(c => tags.push({ icon: 'building', label: c }));
+  // Year/date mentions
+  const years = [...new Set([...(content.matchAll(/\b(20\d\d(?:[–-]20\d\d)?(?:\s*Q[1-4])?)\b/g))].map(m => m[1]))].slice(0, 2);
+  years.forEach(y => tags.push({ icon: 'calendar', label: y }));
+  return tags;
+}
+
+// ── KPI render ────────────────────────────────────────────────────────────────
+function renderKPI(kpi) {
+  document.getElementById('kv-events').textContent = kpi.total_events.toLocaleString();
+  document.getElementById('kv-range').textContent  = kpi.date_range;
+
+  document.getElementById('kv-net').textContent = `${kpi.net_signal >= 0 ? '+' : ''}${kpi.net_signal}`;
+  document.getElementById('kpi-net').classList.toggle('positive', kpi.net_signal >= 0);
+  document.getElementById('kpi-net').classList.toggle('negative', kpi.net_signal < 0);
+
+  document.getElementById('kv-pkg').textContent = `${kpi.pkg_yoy >= 0 ? '+' : ''}${kpi.pkg_yoy.toFixed(1)}%`;
+  document.getElementById('kpi-pkg').classList.toggle('positive', kpi.pkg_yoy >= 0);
+  document.getElementById('kpi-pkg').classList.toggle('negative', kpi.pkg_yoy < 0);
+
+  document.getElementById('kv-launches').textContent = `${kpi.launches_yoy >= 0 ? '+' : ''}${kpi.launches_yoy.toFixed(1)}%`;
+  document.getElementById('kpi-launches').classList.toggle('positive', kpi.launches_yoy >= 0);
+  document.getElementById('kpi-launches').classList.toggle('negative', kpi.launches_yoy < 0);
+}
+
+// ── Narratives ────────────────────────────────────────────────────────────────
+function renderNarratives(narratives) {
+  ['capacity','packaging','launches','market'].forEach((k, i) => {
+    const el = document.getElementById(`narrative-${i}`);
+    if (el) el.innerHTML = narratives[k] || '';
+  });
+}
+
+// ── Charts (full-width, legend below) ────────────────────────────────────────
+function renderChart(divId, spec) {
+  if (!spec || !spec.data) return;
+  const el = document.getElementById(divId);
+  if (!el) return;
+  const srv = spec.layout || {};
+  const layout = Object.assign({}, srv, LIGHT_LAYOUT, {
+    xaxis: Object.assign({}, srv.xaxis, LIGHT_LAYOUT.xaxis),
+    yaxis: Object.assign({}, srv.yaxis, LIGHT_LAYOUT.yaxis),
+  });
+  Plotly.newPlot(el, spec.data, layout, PLOTLY_CFG);
+}
+function renderCharts(charts) {
+  CHART_KEYS.forEach((k, i) => renderChart(CHART_IDS[i], charts[k]));
+}
+
+// ── Findings ──────────────────────────────────────────────────────────────────
+function renderAllFindings(briefing) {
+  state.briefing = briefing;
+  THEME_KEYS.forEach((key, i) => renderPaneFindings(briefing, key, i));
+}
+
+function renderPaneFindings(briefing, themeKey, idx) {
+  const container = document.getElementById(`findings-${idx}`);
+  const metaEl    = document.getElementById(`findings-meta-${idx}`);
+  if (!container) return;
+
+  if (!briefing) {
+    container.innerHTML = '<p class="placeholder-msg">No findings loaded.</p>';
+    return;
+  }
+
+  const findings = (briefing.themed_findings || {})[themeKey] || [];
+  if (!findings.length) {
+    container.innerHTML = '<p class="placeholder-msg">No findings for this theme.</p>';
+    return;
+  }
+
+  if (metaEl) {
+    const ts = (briefing.generated_at || '').slice(0, 10);
+    const n  = briefing.sample_size || 0;
+    metaEl.textContent = `— ${ts} · ${n} events sampled`;
+  }
+
+  container.innerHTML = findings.map(f => {
+    const urgency = f.urgency || 'NOTE';
+    const cfg     = URGENCY_CFG[urgency] || URGENCY_CFG.NOTE;
+    const body    = mdToHtml(f.content || '');
+    const tags    = extractMetaTags(f.content || '');
+    const metaStrip = tags.length
+      ? `<div class="finding-meta-strip">${tags.map(t => `<span class="meta-tag">${ICONS[t.icon]}${escHtml(t.label)}</span>`).join('')}</div>`
+      : '';
+    return `
+      <details class="finding-card urgency-${urgency}">
+        <summary>
+          <span class="badge">${cfg.emoji} ${cfg.label}</span>
+          ${signalDots(urgency)}
+          <span style="flex:1;min-width:0">${escHtml(f.title || '')}</span>
+          <span class="chevron">${ICONS.chevron}</span>
+        </summary>
+        <div class="finding-body">
+          ${metaStrip}
+          ${body}
+        </div>
+      </details>`;
+  }).join('');
+}
+
+function showAutoLoading() {
+  for (let i = 0; i < 4; i++) {
+    const c = document.getElementById(`findings-${i}`);
+    if (c) c.innerHTML = `<div class="auto-loading-msg"><div class="mini-spin"></div>Generating findings from corpus…</div>`;
+  }
+}
+
+// ── Theme tab switching ───────────────────────────────────────────────────────
+document.querySelectorAll('.theme-tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const idx = parseInt(btn.dataset.tab);
+    state.activeThemeTab = idx;
+    document.querySelectorAll('.theme-tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.theme-pane').forEach(p => p.classList.remove('active'));
+    document.getElementById(`pane-${idx}`).classList.add('active');
+    const chartDiv = document.getElementById(CHART_IDS[idx]);
+    if (chartDiv && chartDiv.data) Plotly.Plots.resize(chartDiv);
+  });
+});
+
+// ── Refresh/regen ─────────────────────────────────────────────────────────────
+async function doRefresh(silent = false) {
+  const btn = document.getElementById('refresh-btn');
+  if (btn) { btn.classList.add('loading'); btn.disabled = true; }
+  if (!silent) showAutoLoading();
+  try {
+    const res = await fetch('/api/refresh-briefing', { method: 'POST' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      if (!silent) showError('Regeneration failed: ' + (err.detail || res.statusText));
+      return;
+    }
+    renderAllFindings((await res.json()).briefing);
+  } catch (e) {
+    if (!silent) showError('Network error: ' + e.message);
+  } finally {
+    if (btn) { btn.classList.remove('loading'); btn.disabled = false; }
+  }
+}
+
+function showError(msg) {
+  const c = document.getElementById(`findings-${state.activeThemeTab}`);
+  if (c) c.insertAdjacentHTML('afterbegin', `<div class="error-banner"><strong>Error:</strong> ${escHtml(msg)}</div>`);
+}
+
+// ── Chat ──────────────────────────────────────────────────────────────────────
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  appendChatMsg(msg, 'user');
+  const thinking = appendChatMsg('Thinking…', 'thinking');
+  document.getElementById('chat-send').disabled = true;
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg, history: state.chatHistory, briefing: state.briefing }),
+    });
+    if (!res.ok) {
+      thinking.remove();
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      appendChatMsg('Error: ' + (err.detail || res.statusText), 'assistant');
+      return;
+    }
+    const data = await res.json();
+    state.chatHistory = data.history;
+    thinking.remove();
+    const answer = data.answer || (data.history.length ? data.history[data.history.length-1][1] : '');
+    appendChatMsg(answer, 'assistant');
+    if (data.sources_html) {
+      document.getElementById('sources-content').innerHTML = data.sources_html;
+      document.getElementById('sources-panel').style.display = 'block';
+    }
+  } catch (e) {
+    thinking.remove();
+    appendChatMsg('Network error: ' + e.message, 'assistant');
+  } finally {
+    document.getElementById('chat-send').disabled = false;
+    input.focus();
+  }
+}
+
+function appendChatMsg(text, role) {
+  const box = document.getElementById('chat-box');
+  box.classList.add('has-messages');
+  const el = document.createElement('div');
+  el.className = `chat-msg ${role}`;
+  el.textContent = text;
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+  return el;
+}
+
+function usePrompt(btn) {
+  const input = document.getElementById('chat-input');
+  input.value = btn.textContent.trim();
+  input.focus();
+  sendChat();
+}
+
+document.getElementById('chat-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); sendChat(); }
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init() {
+  try {
+    const [dashRes, briefRes] = await Promise.all([
+      fetch('/api/dashboard'),
+      fetch('/api/briefing'),
+    ]);
+    if (!dashRes.ok) throw new Error(`Dashboard API error: ${dashRes.status}`);
+    const dash = await dashRes.json();
+    state.dashboardData = dash;
+    renderKPI(dash.kpi);
+    renderNarratives(dash.narratives);
+    renderCharts(dash.charts);
+
+    if (briefRes.ok) {
+      const briefData = await briefRes.json();
+      if (briefData.briefing) {
+        renderAllFindings(briefData.briefing);
+      } else {
+        showAutoLoading();
+        doRefresh(true);
+      }
+    }
+  } catch (e) {
+    console.error('Init failed:', e);
+    document.body.insertAdjacentHTML('afterbegin',
+      `<div class="error-banner" style="margin:16px 24px">Failed to load dashboard: ${escHtml(e.message)}</div>`);
+  } finally {
+    document.getElementById('loading-overlay').style.display = 'none';
+  }
+}
+
+init();
+</script>
+</body>
+</html>

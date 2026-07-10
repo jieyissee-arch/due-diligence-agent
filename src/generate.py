@@ -12,6 +12,7 @@ import time
 from typing import Any
 
 import anthropic
+import httpx
 from dotenv import load_dotenv
 
 from retrieval import DEFAULT_TOP_K, retrieve
@@ -84,7 +85,25 @@ def _get_client(api_key: str | None = None) -> anthropic.Anthropic:
             "ANTHROPIC_API_KEY not set. "
             "Copy .env.example to .env and add your key."
         )
-    return anthropic.Anthropic(api_key=key)
+    # Cursor's sandboxed terminal injects a local proxy (127.0.0.1:507xx) that
+    # returns 403 for api.anthropic.com. Bypass it with trust_env=False so we
+    # connect directly. For real corporate proxies (non-localhost) we keep the
+    # proxy in the loop by leaving trust_env at its default (True).
+    proxy_url = (
+        os.environ.get("HTTPS_PROXY")
+        or os.environ.get("https_proxy")
+        or os.environ.get("HTTP_PROXY")
+        or os.environ.get("http_proxy")
+        or ""
+    )
+    is_local_proxy = "127.0.0.1" in proxy_url or "localhost" in proxy_url
+    return anthropic.Anthropic(
+        api_key=key,
+        http_client=httpx.Client(
+            trust_env=not is_local_proxy,
+            timeout=httpx.Timeout(30.0),
+        ),
+    )
 
 
 def _call_claude(
