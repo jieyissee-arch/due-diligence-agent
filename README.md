@@ -1,8 +1,20 @@
 # Due Diligence News Agent
 
+[![RAG Eval](https://github.com/jieyissee-arch/due-diligence-agent/actions/workflows/rag_eval.yml/badge.svg)](https://github.com/jieyissee-arch/due-diligence-agent/actions/workflows/rag_eval.yml)
+
 An end-to-end research automation project for private-equity due diligence on the food manufacturing and FMCG sector. It combines an **agentic extraction pipeline** (scrape → Claude → schema validation → JSON report) with a **local RAG layer** (chunk → embed → Chroma → grounded Q&A with citations).
 
 Built to replace manual analyst review of hundreds of trade-press articles with consistent, structured output.
+
+## Dashboard preview
+
+Local IC dashboard over indexed events — KPIs, investment-theme charts, Claude findings, and grounded RAG chat (`src/api.py`).
+
+![KPI bar and investment-theme charts](docs/screenshots/dashboard-overview.png)
+
+![Claude findings by theme and urgency](docs/screenshots/dashboard-findings.png)
+
+![RAG analyst chat with source citations](docs/screenshots/dashboard-chat.png)
 
 ---
 
@@ -180,6 +192,7 @@ due-diligence-agent/
 ├── tests/
 │   ├── test_eval_scoring.py  # Unit tests for eval scoring helpers
 │   └── test_dashboard_api.py # Dashboard API smoke tests
+├── docs/screenshots/         # Dashboard preview images (README)
 ├── inputs/urls.json          # Sample article URLs (extraction demo)
 ├── demo_data.example.json    # Synthetic RAG corpus (committed)
 ├── sample_events.py          # Sample from private news_scrape_mar26 repo
